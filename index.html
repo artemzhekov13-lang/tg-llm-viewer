@@ -97,8 +97,21 @@
         }
 
         try {
-            // Telegram передает параметры запуска через initDataUnsafe
-            const startParam = tg.initDataUnsafe.start_param;
+            // УНИВЕРСАЛЬНЫЙ СБОР ДАННЫХ
+            // 1. Пытаемся взять стандартный параметр из Telegram
+            let startParam = tg.initDataUnsafe ? tg.initDataUnsafe.start_param : null;
+            
+            // 2. Если пусто, ищем параметр ?data= в обычной адресной строке
+            if (!startParam) {
+                const urlParams = new URLSearchParams(window.location.search);
+                startParam = urlParams.get('data');
+            }
+            
+            // 3. Если всё ещё пусто, проверяем хэш #tgWebAppStartParam=
+            if (!startParam && window.location.hash) {
+                const hashParams = new URLSearchParams(window.location.hash.substring(1));
+                startParam = hashParams.get('tgWebAppStartParam');
+            }
             
             if (!startParam) {
                 document.getElementById('error-box').style.display = 'block';
