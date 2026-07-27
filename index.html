@@ -74,11 +74,11 @@
             background-color: var(--card-bg);
             border: 1px solid var(--border-color);
             border-radius: 12px;
-            padding: 18px;
+            padding: 16px;          /* Внутренние отступы, чтобы текст не лип к рамке */
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            position: relative;
+            gap: 12px;             /* Авто-отступ МЕЖДУ элементами внутри карточки */
+            box-sizing: border-box; 
         }
 
         /* Мета-информация (модель, время) */
@@ -116,9 +116,9 @@
         .code-container {
             border: 1px solid var(--border-color);
             border-radius: 8px;
-            margin: 12px 0;
-            overflow: hidden;
-            background: #1d1512;
+            margin-top: 8px;       /* Небольшой отступ сверху от текста */
+            overflow: hidden;      /* Чтобы скругленные углы не резались кодом */
+            background: #160f0d;   /* Цвет фона под кодом делаем чуть темнее карточки */
         }
         .code-header {
             background-color: var(--code-header-bg);
@@ -155,7 +155,7 @@
         /* Стилизация самого pre с кодом */
         pre {
             margin: 0 !important;
-            padding: 12px !important;
+            padding: 0px !important;
             background: #160f0d !important;
             max-height: 0;
             overflow: hidden;
@@ -163,6 +163,7 @@
         }
         pre.expanded {
             max-height: 600px;
+            padding: 12px !important; /* Появляются, только когда развернули */
             overflow: auto;
         }
         code {
