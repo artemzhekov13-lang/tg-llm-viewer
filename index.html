@@ -5,21 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LLM Bot Code Viewer</title>
     <!-- Подключаем скрипт Telegram Web Apps -->
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="[https://telegram.org/js/telegram-web-app.js](https://telegram.org/js/telegram-web-app.js)"></script>
     <!-- Библиотека для разжатия данных -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
-    <!-- Подсветка кода Prism (Тёмная тема) -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <script src="[https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js](https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js)"></script>
+    
+    <!-- Подсветка кода Prism + Номера строк -->
+    <link href="[https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css](https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css)" rel="stylesheet" />
+    <link href="[https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css](https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css)" rel="stylesheet" />
     
     <style>
         :root {
             --bg-color: #080B11;         /* Глубокий черный с синим отливом */
-            --card-bg: #111823;          /* Темно-синий для карточек */
-            --border-color: #1E293B;     /* Спокойная сине-серая граница */
-            --text-color: #F8FAFC;       /* Чистый белый для контраста */
-            --text-muted: #64748B;       /* Приглушенный серый для метаданных */
-            --accent-color: #10B981;     /* Неоново-зеленый (кнопки, акценты) */
-            --btn-bg: #1E293B;           /* Подложка кнопок */
+            --card-bg: #111823;          /* Темно-синий для карточек (Syntax AI стиль) */
+            --border-color: #1E293B;     /* Спокойная сине-серая граница элементов */
+            --text-color: #F8FAFC;       /* Белый контрастный текст */
+            --text-muted: #64748B;       /* Приглушенный серый */
+            --accent-color: #10B981;     /* Зеленый неоновый для акцентов */
+            --btn-bg: #1E293B;           /* Фоновый цвет кнопок хэдера */
             --btn-hover: #334155;
             --code-bg: #0B0F17;          /* Глубокий темный фон для самого кода */
         }
@@ -54,7 +56,7 @@
             justify-content: center;
         }
 
-        /* Кнопки */
+        /* Системные кнопки */
         .btn {
             background-color: var(--btn-bg);
             color: var(--text-color);
@@ -78,10 +80,10 @@
             background-color: var(--card-bg);
             border: 1px solid var(--border-color);
             border-radius: 14px;
-            padding: 16px;
+            padding: 14px;
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 10px; /* Минимальный отступ между текстом и кодом */
         }
 
         /* Текстовый контент */
@@ -92,7 +94,7 @@
             font-size: 0.95em;
         }
 
-        /* Простой парсинг Markdown элементов для красоты */
+        /* Кастомный рендеринг маркдауна */
         .content b {
             color: #FFF;
             font-weight: 600;
@@ -106,41 +108,44 @@
             color: #E2E8F0;
         }
 
-        /* Контейнер кода в стиле Syntax AI */
+        /* КОНТЕЙНЕР КОДА В СТИЛЕ SYNTAX AI */
         .code-container {
             border: 1px solid var(--border-color);
             border-radius: 10px;
-            margin: 8px 0;
+            margin: 6px 0;
             overflow: hidden;
             background: var(--code-bg);
         }
+        
+        /* Узкая шапка кода строго как на референсе */
         .code-header {
-            background-color: #151D2A;
-            padding: 8px 12px;
+            background-color: #17202E;
+            padding: 6px 12px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid var(--border-color);
+            user-select: none;
         }
         .code-lang {
-            font-size: 0.8em;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--text-muted);
+            font-size: 0.85em;
+            font-weight: 500;
+            text-transform: lowercase;
+            color: #94A3B8;
             font-family: monospace;
         }
         .code-actions {
             display: flex;
             gap: 8px;
         }
+        
+        /* Кнопочки внутри шапки кода */
         .code-btn {
-            background: transparent;
-            border: none;
-            color: var(--text-color);
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.8em;
+            background: #222C3C;
+            border: 1px solid #2D3A4F;
+            color: #E2E8F0;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.78em;
             font-weight: 500;
             cursor: pointer;
             display: flex;
@@ -149,33 +154,46 @@
             transition: 0.15s;
         }
         .code-btn:hover {
-            background: var(--btn-bg);
-            color: var(--accent-color);
+            background: #2D3A4F;
+            border-color: #475569;
+        }
+        .code-btn.btn-expand {
+            /* Подсветим кнопку разворачивания */
         }
 
-        /* По умолчанию скрываем тело кода, оставляя только шапку */
+        /* По умолчанию тело кода полностью скрыто и не имеет внутренних отступов */
         pre {
             margin: 0 !important;
             padding: 0 !important;
             background: var(--code-bg) !important;
             display: none; 
-            max-height: 550px;
+            max-height: 500px;
             overflow: auto;
+            border-top: 1px solid var(--border-color);
         }
-        /* Когда развернуто — обнуляем лишние отступы, код идет с 1 строки */
+        
+        /* Когда добавлен класс expanded — отображаем и возвращаем отступы Prism */
         pre.expanded {
             display: block;
-            padding: 12px !important;
+            padding: 12px 0 !important; /* Убираем лишние боковые отступы для номеров строк */
         }
+        
         code {
             font-family: "Fira Code", Consolas, Monaco, monospace !important;
             font-size: 0.85em !important;
         }
 
-        /* Метаданные (компактно в строку) */
+        /* Кастомизация номеров строк Prism line-numbers */
+        .line-numbers .line-numbers-rows {
+            border-right: 1px solid #1E293B !important;
+            padding-left: 10px !important;
+        }
+
+        /* Метаданные снизу */
         .meta-info {
             border-top: 1px solid var(--border-color);
-            padding-top: 12px;
+            padding-top: 10px;
+            margin-top: 4px;
             display: flex;
             flex-wrap: wrap;
             gap: 12px;
@@ -188,20 +206,7 @@
             gap: 4px;
         }
 
-        /* Нижняя общая кнопка копирования всего ответа */
-        .card-footer {
-            display: flex;
-            justify-content: flex-end;
-        }
-        .card-footer .btn {
-            border-color: rgba(16, 185, 129, 0.3);
-            color: var(--accent-color);
-        }
-        .card-footer .btn:hover {
-            background: rgba(16, 185, 129, 0.1);
-        }
-
-        /* Копирайт / Брендинг */
+        /* Общий подвал */
         .brand-footer {
             margin: auto 0 10px 0;
             display: flex;
@@ -239,7 +244,6 @@
 </head>
 <body>
 
-    <!-- Узкая и аккуратная верхняя панель -->
     <div class="top-bar">
         <div class="top-bar-left">
             <button class="btn" onclick="window.open(window.location.href, '_blank')">↗ В браузер</button>
@@ -250,14 +254,15 @@
     <div id="wrapper"></div>
     <div id="error-box">Упс! Произошла ошибка загрузки или ссылка пуста.</div>
 
-    <!-- Лаконичный футер без тяжелых SVG -->
     <div class="brand-footer">
         <div class="brand-logo">LLM <span>BOT</span></div>
-        <a href="https://t.me/llm_helper_Goodbot" class="brand-link" id="bot-username">@llm_helper_Goodbot</a>
+        <a href="[https://t.me/llm_helper_Goodbot](https://t.me/llm_helper_Goodbot)" class="brand-link" id="bot-username">@llm_helper_Goodbot</a>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-autoloader.min.js"></script>
+    <!-- Скрипты подсветки и авто-нумерации -->
+    <script src="[https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js](https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js)"></script>
+    <script src="[https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-autoloader.min.js](https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-autoloader.min.js)"></script>
+    <script src="[https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js](https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js)"></script>
 
     <script>
         const tg = window.Telegram.WebApp;
@@ -270,14 +275,10 @@
             return atob(str);
         }
 
-        // Превращаем стандартные маркеры Markdown в HTML перед выводом
         function parseBasicMarkdown(text) {
             let parsed = text;
-            // Экранируем HTML
             parsed = parsed.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            // Выделение жирным **текст** -> <b>текст</b>
             parsed = parsed.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-            // Инлайн-код `код` -> <code class="inline-code">код</code>
             parsed = parsed.replace(/`(.*?)`/g, '<code class="inline-code">$1</code>');
             return parsed;
         }
@@ -328,9 +329,6 @@
                     <div class="meta-item">🤖 ${data.model || 'Gemini 3.1 Flash-Lite'}</div>
                     <div class="meta-item">🕒 ${new Date().toLocaleString('ru-RU')}</div>
                 </div>
-                <div class="card-footer">
-                    <button class="btn" onclick="copyCardText(this)">📋 Скопировать весь ответ</button>
-                </div>
             `;
             container.appendChild(card);
         }
@@ -350,9 +348,6 @@
                     <div class="meta-info">
                         <div class="meta-item">🤖 ${modelName || 'Gemini 3.1 Flash-Lite'}</div>
                     </div>
-                    <div class="card-footer">
-                        <button class="btn" onclick="copyCardText(this)">📋 Скопировать весь ответ</button>
-                    </div>
                 `;
             }
             container.appendChild(card);
@@ -360,25 +355,17 @@
 
         function copyBarLink(btn) {
             navigator.clipboard.writeText(window.location.href).then(() => {
-                btn.innerText = '✅ Скопировано!';
+                btn.innerText = '✅ Ссылка скопирована!';
                 setTimeout(() => btn.innerText = '🔗 Скопировать ссылку', 2000);
-            });
-        }
-
-        function copyCardText(btn) {
-            const contentEl = btn.closest('.card').querySelector('.content');
-            let textToCopy = contentEl.innerText;
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                btn.innerText = '✅ Успешно скопировано!';
-                setTimeout(() => btn.innerText = '📋 Скопировать весь ответ', 2000);
             });
         }
 
         function copyBlockCode(btn, base64Code) {
             const code = atob(base64Code);
             navigator.clipboard.writeText(code).then(() => {
-                btn.innerText = '✅ Скопирован';
-                setTimeout(() => btn.innerText = '⬇️ Копировать', 2000);
+                const oldText = btn.innerHTML;
+                btn.innerHTML = '📋 Скопировано';
+                setTimeout(() => btn.innerHTML = oldText, 2000);
             });
         }
 
@@ -386,34 +373,36 @@
             const pre = btn.closest('.code-container').querySelector('pre');
             if (pre.classList.contains('expanded')) {
                 pre.classList.remove('expanded');
-                btn.innerText = '👇 Развернуть';
+                btn.innerHTML = '↑ Развернуть';
             } else {
                 pre.classList.add('expanded');
-                btn.innerText = '👆 Свернуть';
+                btn.innerHTML = '↓ Свернуть';
             }
         }
 
         function formatCodeBlocks() {
             document.querySelectorAll('.content').forEach(el => {
                 let html = el.innerHTML;
-                const regex = /```(?:(\w+)\n)?([\s\S]*?)```/g;
+                
+                // Улучшенный регулярный синтаксис: отлавливает ```lang с учетом любых пробелов/переносов \r?\n
+                const regex = /```(?:(\w*)\s*\r?\n)?([\s\S]*?)```/g;
                 
                 html = html.replace(regex, (match, lang, code) => {
                     lang = lang || 'plaintext';
-                    // Убираем возможные артефакты экранирования перед генерацией base64
                     const cleanCode = code.trim().replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
                     const b64Code = btoa(unescape(encodeURIComponent(cleanCode)));
 
+                    // Возвращаем чистую структуру как на референсе 2 и 3
                     return `
                         <div class="code-container">
                             <div class="code-header">
                                 <div class="code-lang">${lang}</div>
                                 <div class="code-actions">
-                                    <button class="code-btn" onclick="copyBlockCode(this, '${b64Code}')">⬇️ Копировать</button>
-                                    <button class="code-btn" onclick="toggleCode(this)">👇 Развернуть</button>
+                                    <button class="code-btn" onclick="copyBlockCode(this, '${b64Code}')">📋 Скопировать</button>
+                                    <button class="code-btn btn-expand" onclick="toggleCode(this)">↑ Развернуть</button>
                                 </div>
                             </div>
-                            <pre><code class="language-${lang}">${code.trim()}</code></pre>
+                            <pre class="line-numbers"><code class="language-${lang}">${code.trim()}</code></pre>
                         </div>
                     `;
                 });
