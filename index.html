@@ -155,16 +155,24 @@
         /* Стилизация самого pre с кодом */
         pre {
             margin: 0 !important;
-            padding: 0px !important;
-            background: #160f0d !important;
+            padding: 0 !important;
             max-height: 0;
             overflow: hidden;
             transition: max-height 0.3s ease-out;
         }
+
         pre.expanded {
             max-height: 600px;
-            padding: 12px !important; /* Появляются, только когда развернули */
+            padding: 8px 12px !important; 
+            margin: 0 !important;
             overflow: auto;
+        }
+
+        pre.expanded code {
+            padding: 0 !important;
+            margin: 0 !important;
+            display: block;
+            line-height: 1.4 !important;
         }
         code {
             font-family: "Fira Code", Consolas, Monaco, monospace !important;
@@ -383,7 +391,7 @@
                                 <div class="code-lang">${lang}</div>
                                 <div class="code-actions">
                                     <button class="code-btn" onclick="copyBlockCode(this, '${b64Code}')">Скопировать</button>
-                                    <button class="code-btn" onclick="toggleCode(this)">↓ Развернуть</button>
+                                    <button class="code-btn" onclick="toggleCode(this)">↑ Свернуть</button>
                                 </div>
                             </div>
                             <pre><code class="language-${lang}">${code.trim()}</code></pre>
