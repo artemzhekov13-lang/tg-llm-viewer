@@ -6,6 +6,8 @@
     <title>Syntx Style Viewer</title>
     <!-- Подключаем скрипт Telegram Web Apps -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Библиотека для разжатия данных -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <!-- Подсветка кода Prism (Тёмная тема) -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
     
@@ -22,6 +24,19 @@
             --code-header-bg: #2d201c;
         }
 
+        /* Стили для светлой темы */
+        :root.light-theme {
+            --bg-color: #f7f5f4;
+            --card-bg: #ffffff;
+            --border-color: #d1c7c3;
+            --text-color: #2b221f;
+            --text-muted: #70625d;
+            --accent-color: #e67e22;
+            --btn-bg: #eae3e0;
+            --btn-hover: #dfd5d0;
+            --code-header-bg: #f0e8e4;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-color);
@@ -33,6 +48,7 @@
             gap: 16px;
             min-height: 100vh;
             box-sizing: border-box;
+            transition: background-color 0.3s, color 0.3s;
         }
 
         /* Верхняя панель управления */
@@ -77,6 +93,7 @@
             flex-direction: column;
             gap: 12px;
             position: relative;
+            transition: background-color 0.3s, border-color 0.3s;
         }
 
         /* Мета-информация (модель, время) */
@@ -118,6 +135,9 @@
             overflow: hidden;
             background: #1d1512;
         }
+        .light-theme .code-container {
+            background: #faf8f7;
+        }
         .code-header {
             background-color: var(--code-header-bg);
             padding: 6px 12px;
@@ -158,6 +178,9 @@
             max-height: 0;
             overflow: hidden;
             transition: max-height 0.3s ease-out;
+        }
+        .light-theme pre {
+            background: #f5f2f0 !important;
         }
         pre.expanded {
             max-height: 600px;
@@ -212,7 +235,8 @@
             <button class="btn" onclick="window.open(window.location.href, '_blank')">↗ В браузер</button>
             <button class="btn" onclick="copyBarLink(this)">📋 Скопировать ссылку</button>
         </div>
-        <button class="btn" style="padding: 8px 10px;">🌙</button>
+        <!-- Кнопка переключения темы с иконкой луны/солнца -->
+        <button class="btn" id="theme-toggle-btn" onclick="toggleTheme()" style="padding: 8px 12px;">🌙</button>
     </div>
 
     <div id="wrapper"></div>
@@ -233,49 +257,89 @@
     <script>
         const tg = window.Telegram.WebApp;
         tg.ready();
-        tg.expand(); // Разворачиваем сразу на максимум
+        tg.expand(); 
 
-        // Получаем параметры типа (?type=single&key=r_...) из строки
-        const urlParams = new URLSearchParams(window.location.search);
-        const dataType = urlParams.get('type');
-        const cacheKey = urlParams.get('key');
-        
-        const wrapper = document.getElementById('wrapper');
-        const errorBox = document.getElementById('error-box');
+        // Функция переключения темы
+        function toggleTheme() {
+            const root = document.documentElement;
+            const btn = document.getElementById('theme-toggle-btn');
+            if (root.classList.contains('light-theme')) {
+                root.classList.remove('light-theme');
+                btn.innerText = '🌙';
+            } else {
+                root.classList.add('light-theme');
+                btn.innerText = '☀️';
+            }
+        }
 
-        if (!cacheKey || !dataType) {
-            errorBox.style.display = 'block';
-        } else {
-            // Достаем данные напрямую из персонального CloudStorage Telegram
-            tg.CloudStorage.getItem(cacheKey, (error, value) => {
-                if (error || !value) {
-                    console.error("Ошибка загрузки CloudStorage:", error);
-                    errorBox.innerText = "Не удалось загрузить данные из CloudStorage Telegram.";
-                    errorBox.style.display = 'block';
-                    return;
-                }
+        function urlSafeB64Decode(str) {
+            str = str.replace(/-/g, '+').replace(/_/g, '/');
+            while (str.length % 4) { str += '='; }
+            return atob(str);
+        }
 
-                try {
-                    const parsed = JSON.parse(value);
-                    
-                    if (dataType === 'single') {
-                        renderSingleCard(parsed, wrapper);
-                    } else if (dataType === 'history') {
-                        parsed.history.forEach(msg => {
-                            renderHistoryCard(msg, parsed.model, wrapper);
-                        });
+        // Парсинг старого сжатого формата (fallback)
+        function tryParseLegacyData(startParam) {
+            const binaryString = urlSafeB64Decode(startParam);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const decompressed = pako.inflate(bytes, { to: 'string' });
+            return JSON.parse(decompressed);
+        }
+
+        async function init() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const dataType = urlParams.get('type');
+            const cacheKey = urlParams.get('key');
+            let legacyData = urlParams.get('data') || tg.initDataUnsafe.start_param;
+
+            const wrapper = document.getElementById('wrapper');
+            const errorBox = document.getElementById('error-box');
+
+            // 1. Пробуем загрузить через CloudStorage
+            if (cacheKey && dataType) {
+                tg.CloudStorage.getItem(cacheKey, (error, value) => {
+                    if (error || !value) {
+                        console.error("CloudStorage error:", error);
+                        errorBox.style.display = 'block';
+                        return;
                     }
-                    
-                    formatCodeBlocks();
-
-                    // Очищаем за собой облако, чтобы не забивать лимиты
-                    tg.CloudStorage.removeItem(cacheKey);
-
+                    try {
+                        const parsed = JSON.parse(value);
+                        processRender(dataType, parsed, wrapper);
+                        tg.CloudStorage.removeItem(cacheKey); // Чистим облако
+                    } catch (e) {
+                        console.error(e);
+                        errorBox.style.display = 'block';
+                    }
+                });
+            } 
+            // 2. Если CloudStorage параметров нет, но есть старый data-параметр
+            else if (legacyData) {
+                try {
+                    const parsed = tryParseLegacyData(legacyData);
+                    processRender(parsed.type, parsed.data, wrapper);
                 } catch (e) {
-                    console.error("Ошибка обработки данных:", e);
+                    console.error("Legacy parse error:", e);
                     errorBox.style.display = 'block';
                 }
-            });
+            } else {
+                errorBox.style.display = 'block';
+            }
+        }
+
+        function processRender(type, data, wrapper) {
+            if (type === 'single') {
+                renderSingleCard(data, wrapper);
+            } else if (type === 'history') {
+                data.history.forEach(msg => {
+                    renderHistoryCard(msg, data.model, wrapper);
+                });
+            }
+            formatCodeBlocks();
         }
 
         function renderSingleCard(data, container) {
@@ -284,7 +348,7 @@
             card.innerHTML = `
                 <div class="content">${escapeHtml(data.text)}</div>
                 <div class="meta-info">
-                    <div class="meta-item">🤖 Модель: ${data.model || '#Gemini 3.1 Flash-Lite'}</div>
+                    <div class="meta-item">🤖 Модель: ${data.model || 'Claude 4.1 Opus'}</div>
                     <div class="meta-item">🕒 Время: ${new Date().toLocaleString('ru-RU')} GMT+3</div>
                 </div>
                 <div class="card-footer">
@@ -310,7 +374,7 @@
                 card.innerHTML = `
                     <div class="content">${escapeHtml(msg.content)}</div>
                     <div class="meta-info">
-                        <div class="meta-item">🤖 Модель: ${modelName || '#Gemini 3.1 Flash-Lite'}</div>
+                        <div class="meta-item">🤖 Модель: ${modelName || 'Claude 4.1 Opus'}</div>
                     </div>
                     <div class="card-footer">
                         <button class="btn" onclick="copyCardText(this)">📋 Скопировать</button>
@@ -334,7 +398,6 @@
         function copyCardText(btn) {
             const contentEl = btn.closest('.card').querySelector('.content');
             let textToCopy = contentEl.innerText;
-            
             navigator.clipboard.writeText(textToCopy).then(() => {
                 btn.innerText = '✅ Скопировано!';
                 setTimeout(() => btn.innerText = '📋 Скопировать', 2000);
@@ -387,6 +450,9 @@
             });
             Prism.highlightAll();
         }
+
+        // Запуск инициализации
+        init();
     </script>
 </body>
 </html>
