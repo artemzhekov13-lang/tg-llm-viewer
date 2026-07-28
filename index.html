@@ -6,8 +6,6 @@
     <title>Syntx Style Viewer</title>
     <!-- Подключаем скрипт Telegram Web Apps -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <!-- Библиотека для разжатия данных -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <!-- Подсветка кода Prism (Тёмная тема) -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
     
@@ -37,7 +35,6 @@
             box-sizing: border-box;
         }
 
-        /* Верхняя панель управления */
         .top-bar {
             display: flex;
             justify-content: space-between;
@@ -50,7 +47,6 @@
             gap: 8px;
         }
 
-        /* Общие стили для кнопок */
         .btn {
             background-color: transparent;
             color: var(--text-color);
@@ -69,7 +65,6 @@
             border-color: var(--text-muted);
         }
 
-        /* Карточки сообщений */
         .card {
             background-color: var(--card-bg);
             border: 1px solid var(--border-color);
@@ -81,7 +76,6 @@
             position: relative;
         }
 
-        /* Мета-информация (модель, время) */
         .meta-info {
             border-top: 1px solid var(--border-color);
             padding-top: 12px;
@@ -105,14 +99,12 @@
             font-size: 0.95em;
         }
 
-        /* Нижний блок для кнопок копирования карточки */
         .card-footer {
             display: flex;
             justify-content: flex-end;
             margin-top: 4px;
         }
 
-        /* Кастомный контейнер для блоков кода */
         .code-container {
             border: 1px solid var(--border-color);
             border-radius: 8px;
@@ -152,7 +144,6 @@
             background: var(--btn-hover);
         }
 
-        /* Стилизация самого pre с кодом */
         pre {
             margin: 0 !important;
             padding: 12px !important;
@@ -170,7 +161,6 @@
             font-size: 0.85em !important;
         }
 
-        /* Копирайт / Футер */
         .brand-footer {
             margin: auto 0 10px 0;
             display: flex;
@@ -208,7 +198,6 @@
 </head>
 <body>
 
-    <!-- Верхние системные кнопки -->
     <div class="top-bar">
         <div class="top-bar-left">
             <button class="btn" onclick="window.open(window.location.href, '_blank')">↗ В браузер</button>
@@ -220,7 +209,6 @@
     <div id="wrapper"></div>
     <div id="error-box">Произошла ошибка загрузки данных или ссылка пуста.</div>
 
-    <!-- Футер бренда -->
     <div class="brand-footer">
         <div class="brand-logo">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--accent-color)"><path d="M12 2L2 22h20L12 2zm0 4.5L18.5 19h-13L12 6.5z"/></svg>
@@ -235,46 +223,41 @@
     <script>
         const tg = window.Telegram.WebApp;
         tg.ready();
-        tg.expand(); // Разворачиваем сразу на максимум
+        tg.expand();
 
-        function urlSafeB64Decode(str) {
-            str = str.replace(/-/g, '+').replace(/_/g, '/');
-            while (str.length % 4) { str += '='; }
-            return atob(str);
-        }
+        // ⚠️ ЗАМЕНИ ЭТОТ URL НА IP СВОЕГО СЕРВЕРА (например, http://95.216.22.10:8000)
+        const API_BASE_URL = "http://ТВОЙ_IP_СЕРВЕРА:8000"; 
 
         try {
-            // Берем параметры либо из URL (?data=...), либо из Telegram start_param
-            let startParam = tg.initDataUnsafe.start_param;
-            if (!startParam) {
-                const urlParams = new URLSearchParams(window.location.search);
-                startParam = urlParams.get('data');
-            }
+            const urlParams = new URLSearchParams(window.location.search);
+            const viewId = urlParams.get('id');
             
-            if (!startParam) {
+            if (!viewId) {
                 document.getElementById('error-box').style.display = 'block';
             } else {
-                const binaryString = urlSafeB64Decode(startParam);
-                const len = binaryString.length;
-                const bytes = new Uint8Array(len);
-                for (let i = 0; i < len; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
-                }
-                
-                const decompressed = pako.inflate(bytes, { to: 'string' });
-                const parsed = JSON.parse(decompressed);
-                
-                const wrapper = document.getElementById('wrapper');
-                
-                if (parsed.type === 'single') {
-                    renderSingleCard(parsed.data, wrapper);
-                } else if (parsed.type === 'history') {
-                    parsed.data.history.forEach(msg => {
-                        renderHistoryCard(msg, parsed.data.model, wrapper);
+                fetch(`${API_BASE_URL}/api/view/${viewId}`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Данные не найдены');
+                        return response.json();
+                    })
+                    .then(parsed => {
+                        const wrapper = document.getElementById('wrapper');
+                        
+                        if (parsed.type === 'single') {
+                            renderSingleCard(parsed.data, wrapper);
+                        } else if (parsed.type === 'history') {
+                            parsed.data.history.forEach(msg => {
+                                renderHistoryCard(msg, parsed.data.model, wrapper);
+                            });
+                        }
+                        
+                        formatCodeBlocks();
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        document.getElementById('error-box').innerText = "Ошибка загрузки: данные удалены или недоступны.";
+                        document.getElementById('error-box').style.display = 'block';
                     });
-                }
-                
-                formatCodeBlocks();
             }
         } catch (e) {
             console.error(e);
@@ -336,10 +319,7 @@
 
         function copyCardText(btn) {
             const contentEl = btn.closest('.card').querySelector('.content');
-            // Копируем чистый текст без разметки кнопок свернуть/развернуть
             let textToCopy = contentEl.innerText;
-            
-            // Если внутри есть блоки кода, Prism может добавлять лишние элементы, но innerText забирает текст адекватно.
             navigator.clipboard.writeText(textToCopy).then(() => {
                 btn.innerText = '✅ Скопировано!';
                 setTimeout(() => btn.innerText = '📋 Скопировать', 2000);
@@ -372,7 +352,6 @@
                 
                 html = html.replace(regex, (match, lang, code) => {
                     lang = lang || 'plaintext';
-                    // Декодируем HTML-сущности обратно перед кодированием в base64, чтобы в буфер падало без &lt;
                     const cleanCode = code.trim().replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
                     const b64Code = btoa(unescape(encodeURIComponent(cleanCode)));
 
